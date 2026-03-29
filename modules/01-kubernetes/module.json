@@ -1,0 +1,7 @@
+{
+  "title": "Module 1: Kubernetes",
+  "description": "From zero to deploying a multi-container monitoring stack with Helm on minikube.",
+  "duration": "2 weeks",
+  "noAiRule": false,
+  "prerequisites": "Module 0 (especially Docker), minikube, kubectl, helm"
+}
