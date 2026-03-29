@@ -1,0 +1,263 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LAB_DIR="$(cd "$(dirname "$0")" && pwd)"
+MODULES_DIR="$LAB_DIR/modules"
+PROGRESS_FILE="$LAB_DIR/progress.json"
+
+# Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
+usage() {
+  cat <<EOF
+${BOLD}DevOps Lab CLI${NC}
+
+Usage: lab <command> [args]
+
+Commands:
+  status              Show progress across all modules
+  list                List all exercises
+  verify <id>         Run verification for an exercise
+  reset <id>          Reset an exercise to starting state
+  hint <id>           Show hint for an exercise
+  next                Show the next incomplete exercise
+  cheatsheet <module> Show the cheatsheet for a module
+  start               Start the web server
+
+Exercise IDs use the format: section/exercise
+  Example: 0A-linux-sysadmin/01-process-management
+
+EOF
+}
+
+ensure_progress() {
+  if [[ ! -f "$PROGRESS_FILE" ]]; then
+    echo '{"exercises":{},"started_at":null,"last_activity":null}' > "$PROGRESS_FILE"
+  fi
+}
+
+find_exercise_dir() {
+  local id="$1"
+  # Search across all modules for a matching section/exercise
+  for module_dir in "$MODULES_DIR"/*/; do
+    local full_path="$module_dir$id"
+    if [[ -d "$full_path" ]]; then
+      echo "$full_path"
+      return 0
+    fi
+  done
+  # Try with full path including module
+  if [[ -d "$MODULES_DIR/$id" ]]; then
+    echo "$MODULES_DIR/$id"
+    return 0
+  fi
+  return 1
+}
+
+get_module_for_exercise() {
+  local id="$1"
+  for module_dir in "$MODULES_DIR"/*/; do
+    if [[ -d "$module_dir$id" ]]; then
+      basename "$module_dir"
+      return 0
+    fi
+  done
+  echo ""
+}
+
+cmd_status() {
+  ensure_progress
+  echo -e "${BOLD}DevOps Lab — Progress${NC}\n"
+
+  local total=0
+  local completed=0
+
+  for module_dir in "$MODULES_DIR"/*/; do
+    [[ -d "$module_dir" ]] || continue
+    local module_name
+    module_name=$(basename "$module_dir")
+    local mod_title
+    mod_title=$(jq -r '.title // "'"$module_name"'"' "$module_dir/module.json" 2>/dev/null || echo "$module_name")
+    local mod_total=0
+    local mod_done=0
+
+    for section_dir in "$module_dir"*/; do
+      [[ -d "$section_dir" ]] || continue
+      for ex_dir in "$section_dir"*/; do
+        [[ -f "$ex_dir/lesson.md" ]] || continue
+        local ex_id="$module_name/$(basename "$section_dir")/$(basename "$ex_dir")"
+        mod_total=$((mod_total + 1))
+        total=$((total + 1))
+        if jq -e ".exercises[\"$ex_id\"].completed" "$PROGRESS_FILE" &>/dev/null; then
+          mod_done=$((mod_done + 1))
+          completed=$((completed + 1))
+        fi
+      done
+    done
+
+    local pct=0
+    [[ $mod_total -gt 0 ]] && pct=$((mod_done * 100 / mod_total))
+    local bar_filled=$((pct / 5))
+    local bar_empty=$((20 - bar_filled))
+    local bar="${GREEN}$(printf '█%.0s' $(seq 1 $bar_filled 2>/dev/null) || true)${NC}$(printf '░%.0s' $(seq 1 $bar_empty 2>/dev/null) || true)"
+
+    echo -e "  ${BOLD}$mod_title${NC}"
+    echo -e "  $bar ${mod_done}/${mod_total} (${pct}%)\n"
+  done
+
+  echo -e "${BOLD}Total: ${completed}/${total} exercises completed${NC}"
+}
+
+cmd_list() {
+  ensure_progress
+  for module_dir in "$MODULES_DIR"/*/; do
+    [[ -d "$module_dir" ]] || continue
+    local module_name
+    module_name=$(basename "$module_dir")
+    echo -e "\n${BOLD}$(jq -r '.title // "'"$module_name"'"' "$module_dir/module.json" 2>/dev/null || echo "$module_name")${NC}"
+
+    for section_dir in "$module_dir"*/; do
+      [[ -d "$section_dir" ]] || continue
+      local section_name
+      section_name=$(basename "$section_dir")
+      echo -e "  ${BLUE}$(jq -r '.title // "'"$section_name"'"' "$section_dir/section.json" 2>/dev/null || echo "$section_name")${NC}"
+
+      for ex_dir in "$section_dir"*/; do
+        [[ -f "$ex_dir/lesson.md" ]] || continue
+        local ex_name
+        ex_name=$(basename "$ex_dir")
+        local ex_id="$module_name/$section_name/$ex_name"
+        local status="○"
+        if jq -e ".exercises[\"$ex_id\"].completed" "$PROGRESS_FILE" &>/dev/null; then
+          status="${GREEN}✓${NC}"
+        fi
+        echo -e "    $status  ${section_name}/${ex_name}"
+      done
+    done
+  done
+}
+
+cmd_verify() {
+  local id="$1"
+  local ex_dir
+  ex_dir=$(find_exercise_dir "$id") || { echo -e "${RED}Exercise not found: $id${NC}"; exit 1; }
+
+  if [[ ! -f "$ex_dir/verify.sh" ]]; then
+    echo -e "${YELLOW}No verification script for this exercise.${NC}"
+    exit 1
+  fi
+
+  echo -e "${BLUE}Running verification...${NC}\n"
+  if LAB_DIR="$LAB_DIR" bash "$ex_dir/verify.sh"; then
+    echo -e "\n${GREEN}${BOLD}✓ PASSED${NC}"
+    # Update progress
+    local module_name
+    module_name=$(get_module_for_exercise "$id")
+    local full_id="$module_name/$id"
+    [[ -n "$module_name" ]] || full_id="$id"
+    ensure_progress
+    local tmp
+    tmp=$(jq --arg id "$full_id" --arg ts "$(date -Iseconds)" \
+      '.exercises[$id] = {completed: true, completed_at: $ts} | .last_activity = $ts | .started_at //= $ts' \
+      "$PROGRESS_FILE")
+    echo "$tmp" > "$PROGRESS_FILE"
+  else
+    echo -e "\n${RED}${BOLD}✗ FAILED${NC}"
+    echo -e "${YELLOW}Review the output above and try again.${NC}"
+    exit 1
+  fi
+}
+
+cmd_reset() {
+  local id="$1"
+  local ex_dir
+  ex_dir=$(find_exercise_dir "$id") || { echo -e "${RED}Exercise not found: $id${NC}"; exit 1; }
+
+  if [[ ! -f "$ex_dir/reset.sh" ]]; then
+    echo -e "${YELLOW}No reset script for this exercise.${NC}"
+    exit 1
+  fi
+
+  echo -e "${BLUE}Resetting exercise...${NC}"
+  if LAB_DIR="$LAB_DIR" bash "$ex_dir/reset.sh"; then
+    echo -e "${GREEN}Reset complete.${NC}"
+    # Remove from progress
+    local module_name
+    module_name=$(get_module_for_exercise "$id")
+    local full_id="$module_name/$id"
+    [[ -n "$module_name" ]] || full_id="$id"
+    ensure_progress
+    local tmp
+    tmp=$(jq --arg id "$full_id" 'del(.exercises[$id])' "$PROGRESS_FILE")
+    echo "$tmp" > "$PROGRESS_FILE"
+  else
+    echo -e "${RED}Reset failed.${NC}"
+    exit 1
+  fi
+}
+
+cmd_hint() {
+  local id="$1"
+  local ex_dir
+  ex_dir=$(find_exercise_dir "$id") || { echo -e "${RED}Exercise not found: $id${NC}"; exit 1; }
+
+  if [[ ! -f "$ex_dir/hint.md" ]]; then
+    echo -e "${YELLOW}No hints available for this exercise.${NC}"
+    exit 1
+  fi
+
+  echo -e "${YELLOW}${BOLD}Hint:${NC}\n"
+  cat "$ex_dir/hint.md"
+}
+
+cmd_next() {
+  ensure_progress
+  for module_dir in "$MODULES_DIR"/*/; do
+    [[ -d "$module_dir" ]] || continue
+    local module_name
+    module_name=$(basename "$module_dir")
+    for section_dir in "$module_dir"*/; do
+      [[ -d "$section_dir" ]] || continue
+      for ex_dir in "$section_dir"*/; do
+        [[ -f "$ex_dir/lesson.md" ]] || continue
+        local section_name
+        section_name=$(basename "$section_dir")
+        local ex_name
+        ex_name=$(basename "$ex_dir")
+        local ex_id="$module_name/$section_name/$ex_name"
+        if ! jq -e ".exercises[\"$ex_id\"].completed" "$PROGRESS_FILE" &>/dev/null; then
+          echo -e "${BOLD}Next exercise:${NC} ${section_name}/${ex_name}"
+          echo -e "${BLUE}Run:${NC} lab verify ${section_name}/${ex_name}"
+          echo -e "\nOpen in browser: ${BLUE}http://localhost:3333/#/exercise/${ex_id}${NC}"
+          return 0
+        fi
+      done
+    done
+  done
+  echo -e "${GREEN}All exercises completed!${NC}"
+}
+
+cmd_start() {
+  echo -e "${BLUE}Starting DevOps Lab server...${NC}"
+  cd "$LAB_DIR" && node server.js
+}
+
+# --- Main ---
+
+case "${1:-}" in
+  status)     cmd_status ;;
+  list)       cmd_list ;;
+  verify)     [[ -n "${2:-}" ]] || { echo "Usage: lab verify <exercise-id>"; exit 1; }; cmd_verify "$2" ;;
+  reset)      [[ -n "${2:-}" ]] || { echo "Usage: lab reset <exercise-id>"; exit 1; }; cmd_reset "$2" ;;
+  hint)       [[ -n "${2:-}" ]] || { echo "Usage: lab hint <exercise-id>"; exit 1; }; cmd_hint "$2" ;;
+  next)       cmd_next ;;
+  cheatsheet) [[ -n "${2:-}" ]] && cat "$MODULES_DIR/$2/cheatsheet.md" 2>/dev/null || echo "Usage: lab cheatsheet <module-id>" ;;
+  start)      cmd_start ;;
+  help|--help|-h|"") usage ;;
+  *)          echo -e "${RED}Unknown command: $1${NC}"; usage; exit 1 ;;
+esac
