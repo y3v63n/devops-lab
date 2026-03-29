@@ -10,20 +10,51 @@ LAB_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo -e "${BOLD}Setting up DevOps Lab...${NC}\n"
 
-# Check Node.js
-if ! command -v node &>/dev/null; then
-  echo "Error: Node.js is required. Install it first."
-  exit 1
+# Install system packages (jq, curl, git)
+echo "  Checking system packages..."
+PKGS_NEEDED=""
+command -v jq &>/dev/null || PKGS_NEEDED="$PKGS_NEEDED jq"
+command -v curl &>/dev/null || PKGS_NEEDED="$PKGS_NEEDED curl"
+command -v git &>/dev/null || PKGS_NEEDED="$PKGS_NEEDED git"
+if [[ -n "$PKGS_NEEDED" ]]; then
+  echo "  Installing:$PKGS_NEEDED"
+  sudo apt-get update -qq >/dev/null 2>&1
+  sudo apt-get install -y -qq $PKGS_NEEDED >/dev/null 2>&1
 fi
+echo -e "  ${GREEN}✓${NC} System packages (jq, curl, git)"
 
+# Install Node.js via nvm if not present
+if ! command -v node &>/dev/null; then
+  echo "  Installing Node.js via nvm..."
+  export NVM_DIR="$HOME/.nvm"
+  if [[ ! -d "$NVM_DIR" ]]; then
+    NVM_SCRIPT=$(mktemp)
+    curl -o "$NVM_SCRIPT" https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh
+    bash "$NVM_SCRIPT"
+    rm -f "$NVM_SCRIPT"
+  fi
+  # Load nvm
+  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+  nvm install 22 >/dev/null 2>&1
+  nvm use 22 >/dev/null 2>&1
+fi
+# Ensure nvm is loaded (for existing installs)
+export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
 echo -e "  ${GREEN}✓${NC} Node.js $(node --version)"
 
-# Check jq
-if ! command -v jq &>/dev/null; then
-  echo "  Installing jq..."
-  sudo apt-get install -y jq >/dev/null 2>&1 || { echo "Error: Could not install jq. Install it manually."; exit 1; }
+# Install Docker if not present
+if ! command -v docker &>/dev/null; then
+  echo "  Installing Docker..."
+  DOCKER_SCRIPT=$(mktemp)
+  curl -fsSL https://get.docker.com -o "$DOCKER_SCRIPT"
+  sh "$DOCKER_SCRIPT" >/dev/null 2>&1
+  rm -f "$DOCKER_SCRIPT"
+  sudo usermod -aG docker "$USER" 2>/dev/null || true
+  echo -e "  ${GREEN}✓${NC} Docker installed (log out and back in for group permissions)"
+else
+  echo -e "  ${GREEN}✓${NC} Docker $(docker --version | awk '{print $3}' | tr -d ',')"
 fi
-echo -e "  ${GREEN}✓${NC} jq installed"
 
 # Install npm dependencies
 echo "  Installing dependencies..."
@@ -47,6 +78,12 @@ chmod +x "$LAB_DIR/lab-cli"
 mkdir -p "$HOME/bin"
 ln -sf "$LAB_DIR/lab-cli" "$HOME/bin/lab"
 echo -e "  ${GREEN}✓${NC} lab CLI linked to ~/bin/lab"
+
+# Ensure ~/bin is in PATH
+if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+  echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
+  export PATH="$HOME/bin:$PATH"
+fi
 
 # Initialize progress
 if [[ ! -f "$LAB_DIR/progress.json" ]]; then
