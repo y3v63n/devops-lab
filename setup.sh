@@ -94,7 +94,9 @@ fi
 find "$LAB_DIR/modules" -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true
 
 echo -e "\n${GREEN}${BOLD}Setup complete!${NC}\n"
-echo -e "Start the web server:  ${BLUE}lab start${NC}"
-echo -e "                  or:  ${BLUE}cd $LAB_DIR && npm start${NC}"
-echo -e "Then open:             ${BLUE}http://localhost:3333${NC}\n"
-echo -e "CLI commands:          ${BLUE}lab help${NC}"
+echo -e "Run this to activate the lab CLI in your current shell:\n"
+echo -e "  ${BLUE}source ~/.bashrc${NC}\n"
+echo -e "Then start the web server:\n"
+echo -e "  ${BLUE}lab start${NC}\n"
+echo -e "Open:  ${BLUE}http://localhost:3333${NC}"
+echo -e "CLI:   ${BLUE}lab help${NC}"

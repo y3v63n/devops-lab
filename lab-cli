@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LAB_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_PATH="$(readlink -f "$0")"
+LAB_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
 MODULES_DIR="$LAB_DIR/modules"
 PROGRESS_FILE="$LAB_DIR/progress.json"
 
