@@ -267,31 +267,31 @@ async function loadExercise(exerciseId) {
   loadingP.textContent = 'Loading...';
   lessonEl.replaceChildren(loadingP);
 
-  const res = await fetch(`/api/exercise/${moduleId}/${sectionId}/${exId}/lesson`);
-  const data = await res.json();
+  try {
+    const res = await fetch(`/api/exercise/${moduleId}/${sectionId}/${exId}/lesson`);
+    const data = await res.json();
 
-  // Configure marked with highlight.js syntax highlighting
-  const renderer = new marked.Renderer();
-  renderer.code = function({ text, lang }) {
-    let highlighted;
-    if (lang && hljs.getLanguage(lang)) {
-      highlighted = hljs.highlight(text, { language: lang }).value;
-    } else {
-      highlighted = hljs.highlightAuto(text).value;
-    }
-    return `<pre><code class="hljs language-${esc(lang || '')}">${highlighted}</code></pre>`;
-  };
-  marked.use({ renderer });
+    // Parse markdown and render via DOMParser (content from our own exercise files)
+    const html = marked.parse(data.content);
+    const doc = new DOMParser().parseFromString(html, 'text/html');
 
-  let html = marked.parse(data.content);
+    // Apply syntax highlighting to code blocks
+    doc.querySelectorAll('pre code').forEach(block => {
+      hljs.highlightElement(block);
+    });
 
-  // Transform interview question blockquotes into styled callouts
-  html = html.replace(/<blockquote>\s*<p><strong>Interview Q[^<]*<\/strong>/g, (match) => {
-    return match.replace('<blockquote>', '<blockquote class="interview-q">');
-  });
+    // Transform interview question blockquotes into styled callouts
+    doc.querySelectorAll('blockquote').forEach(bq => {
+      const strong = bq.querySelector('strong');
+      if (strong && strong.textContent.startsWith('Interview Q')) {
+        bq.classList.add('interview-q');
+      }
+    });
 
-  // Render markdown from our own server-side exercise files
-  setMarkdown(lessonEl, html);
+    lessonEl.replaceChildren(...doc.body.childNodes);
+  } catch (err) {
+    lessonEl.textContent = 'Error loading lesson: ' + err.message;
+  }
 
   if (ex.hasHint) {
     document.getElementById('hint-section').style.display = '';
