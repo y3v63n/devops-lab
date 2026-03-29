@@ -1,1 +1,25 @@
-{ "title": "0E: Terraform/OpenTofu", "description": "Reading configs, writing resources, plan and apply" }
+{
+  "id": "0E",
+  "title": "Terraform / OpenTofu",
+  "description": "Infrastructure as Code fundamentals using Terraform/OpenTofu — reading HCL configs, writing your own, and running the full plan/apply/destroy lifecycle.",
+  "exercises": [
+    {
+      "id": "0E-01",
+      "dir": "01-reading-tf-files",
+      "title": "Reading Terraform Config Files",
+      "description": "Understand HCL syntax, providers, resources, variables, outputs, and state by analyzing a real-world AWS-style configuration."
+    },
+    {
+      "id": "0E-02",
+      "dir": "02-writing-config",
+      "title": "Writing a Terraform Configuration",
+      "description": "Write a complete Terraform config using the local provider, then run init and plan."
+    },
+    {
+      "id": "0E-03",
+      "dir": "03-modify-plan-apply-destroy",
+      "title": "Modify, Plan, Apply, Destroy",
+      "description": "Experience the full Terraform workflow: modify an existing config, inspect the diff with plan, apply changes, and tear down with destroy."
+    }
+  ]
+}
