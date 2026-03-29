@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevOps Lab</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/assets/highlight-github.css">
+</head>
+<body>
+  <div id="app">
+    <nav id="sidebar">
+      <div class="sidebar-header">
+        <h1>DevOps Lab</h1>
+        <div id="progress-summary"></div>
+      </div>
+      <div id="module-nav"></div>
+    </nav>
+
+    <main id="content">
+      <div id="dashboard-view" class="view">
+        <h2>Dashboard</h2>
+        <div id="dashboard-stats"></div>
+        <div id="dashboard-modules"></div>
+        <div id="next-exercise"></div>
+      </div>
+
+      <div id="exercise-view" class="view" style="display:none">
+        <div id="exercise-header">
+          <div id="breadcrumb"></div>
+          <h2 id="exercise-title"></h2>
+        </div>
+        <div id="no-ai-banner" style="display:none">
+          <strong>⚠ NO AI RULE:</strong> Do not use Claude, ChatGPT, or any AI assistant for this exercise. Use <code>man</code> pages, <code>--help</code> flags, and the cheatsheet. Build your recall.
+        </div>
+        <div id="lesson-content"></div>
+        <div id="hint-section" style="display:none">
+          <button id="hint-toggle" onclick="toggleHint()">Show Hint</button>
+          <div id="hint-content" style="display:none"></div>
+        </div>
+        <div id="exercise-actions">
+          <button id="btn-verify" onclick="verifyExercise()">Verify</button>
+          <button id="btn-reset" onclick="resetExercise()">Reset</button>
+          <button id="btn-cheatsheet" onclick="showCheatsheet()">Cheatsheet</button>
+        </div>
+        <div id="verify-result" style="display:none"></div>
+        <div id="exercise-nav">
+          <button id="btn-prev" onclick="navigatePrev()">← Previous</button>
+          <button id="btn-next" onclick="navigateNext()">Next →</button>
+        </div>
+      </div>
+
+      <div id="cheatsheet-view" class="view" style="display:none">
+        <button onclick="hideCheatsheet()">← Back to Exercise</button>
+        <div id="cheatsheet-content"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/vendor/marked.min.js"></script>
+  <script src="/js/vendor/highlight.min.js"></script>
+  <script src="/js/progress.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>
