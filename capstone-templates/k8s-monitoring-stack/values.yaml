@@ -1,0 +1,54 @@
+# Blockchain Monitor — Default Values
+# Override these in your own values file or with --set
+
+# --- Prometheus ---
+prometheus:
+  enabled: true
+  server:
+    retention: "24h"
+    global:
+      scrape_interval: "15s"
+    persistentVolume:
+      enabled: false  # Disable for minikube
+  alertmanager:
+    enabled: false  # Enable when ready for alerting
+  pushgateway:
+    enabled: false
+
+# --- Grafana ---
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: devops-lab  # Change in production!
+  service:
+    type: ClusterIP
+  # datasources:
+  #   datasources.yaml:
+  #     apiVersion: 1
+  #     datasources:
+  #       - name: Prometheus
+  #         type: prometheus
+  #         url: http://blockchain-monitor-prometheus-server
+  #         isDefault: true
+
+# --- Health Checker ---
+healthChecker:
+  replicas: 1
+  image:
+    repository: nginx
+    tag: alpine
+  service:
+    port: 80
+    targetPort: 80
+
+# --- Ingress ---
+ingress:
+  enabled: true
+  className: nginx
+  host: monitoring.local
+  paths:
+    grafana: /grafana
+  tls: []
+  # - secretName: monitoring-tls
+  #   hosts:
+  #     - monitoring.local
