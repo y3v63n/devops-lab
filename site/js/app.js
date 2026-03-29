@@ -269,7 +269,9 @@ async function loadExercise(exerciseId) {
 
   try {
     const res = await fetch(`/api/exercise/${moduleId}/${sectionId}/${exId}/lesson`);
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
     const data = await res.json();
+    if (!data.content) throw new Error('Lesson content is empty');
 
     // Parse markdown and render via DOMParser (content from our own exercise files)
     const html = marked.parse(data.content);

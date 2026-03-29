@@ -18,8 +18,8 @@ command -v curl &>/dev/null || PKGS_NEEDED="$PKGS_NEEDED curl"
 command -v git &>/dev/null || PKGS_NEEDED="$PKGS_NEEDED git"
 if [[ -n "$PKGS_NEEDED" ]]; then
   echo "  Installing:$PKGS_NEEDED"
-  sudo apt-get update -qq >/dev/null 2>&1
-  sudo apt-get install -y -qq $PKGS_NEEDED >/dev/null 2>&1
+  sudo DEBIAN_FRONTEND=noninteractive apt-get update -qq >/dev/null 2>&1
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq $PKGS_NEEDED >/dev/null 2>&1
 fi
 echo -e "  ${GREEN}✓${NC} System packages (jq, curl, git)"
 
@@ -80,10 +80,10 @@ ln -sf "$LAB_DIR/lab-cli" "$HOME/bin/lab"
 echo -e "  ${GREEN}✓${NC} lab CLI linked to ~/bin/lab"
 
 # Ensure ~/bin is in PATH
-if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
+if ! grep -q 'export PATH="$HOME/bin:$PATH"' "$HOME/.bashrc" 2>/dev/null; then
   echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
-  export PATH="$HOME/bin:$PATH"
 fi
+export PATH="$HOME/bin:$PATH"
 
 # Initialize progress
 if [[ ! -f "$LAB_DIR/progress.json" ]]; then
