@@ -390,4 +390,41 @@ function applyTooltips(container) {
     const newCode = doc.querySelector('code');
     block.replaceChildren(...newCode.childNodes);
   });
+
+  // Attach event listeners for tooltip display
+  initTooltipEvents(container);
+}
+
+// Global tooltip element (appended to body, avoids overflow clipping)
+let tooltipEl = null;
+
+function getTooltipEl() {
+  if (!tooltipEl) {
+    tooltipEl = document.createElement('div');
+    tooltipEl.id = 'cmd-tooltip';
+    tooltipEl.style.cssText = 'position:fixed;display:none;z-index:9999;';
+    document.body.appendChild(tooltipEl);
+  }
+  return tooltipEl;
+}
+
+function initTooltipEvents(container) {
+  container.querySelectorAll('.cmd-tip').forEach(span => {
+    span.addEventListener('mouseenter', (e) => {
+      const tip = getTooltipEl();
+      tip.textContent = e.target.dataset.tip;
+      tip.style.display = 'block';
+      const rect = e.target.getBoundingClientRect();
+      // Position above the element
+      tip.style.left = Math.max(8, rect.left + rect.width / 2 - tip.offsetWidth / 2) + 'px';
+      tip.style.top = (rect.top - tip.offsetHeight - 8) + 'px';
+      // If above viewport, show below instead
+      if (rect.top - tip.offsetHeight - 8 < 0) {
+        tip.style.top = (rect.bottom + 8) + 'px';
+      }
+    });
+    span.addEventListener('mouseleave', () => {
+      getTooltipEl().style.display = 'none';
+    });
+  });
 }
