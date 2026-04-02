@@ -291,6 +291,11 @@ async function loadExercise(exerciseId) {
     });
 
     lessonEl.replaceChildren(...doc.body.childNodes);
+
+    // Apply command tooltips to code blocks
+    if (typeof applyTooltips === 'function') {
+      applyTooltips(lessonEl);
+    }
   } catch (err) {
     lessonEl.textContent = 'Error loading lesson: ' + err.message;
   }
